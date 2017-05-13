@@ -5,7 +5,9 @@ import random
 import math
 
 
+pygame.init()
 pygame.font.init()
+pygame.display.set_mode((1024, 1024))
 
 class World:
     font_pathes = [os.path.join("fonts", f) for f in os.listdir("fonts") if f.endswith(".ttf")]
@@ -103,7 +105,7 @@ class Thing:
 
 class Can(Thing):
     image_pathes = [os.path.join("images/can", f) for f in os.listdir("images/can") if f.endswith(".png")]
-    images = [pygame.image.load(path) for path in image_pathes]
+    images = [pygame.image.load(path).convert_alpha() for path in image_pathes]
     sprites = [image for image in images]
     def __init__(self):
         self.sprite = random.choice(Can.sprites)
@@ -115,7 +117,7 @@ class Robot(Thing):
     stop_image_path = "images/robot/stop.png"
     #grab_animation = []
     #move_animation= []
-    stop_image = pygame.image.load(stop_image_path)
+    stop_image = pygame.image.load(stop_image_path).convert_alpha()
     stop_sprite = stop_image
     wheel_speed = 1
 
@@ -176,7 +178,18 @@ class Robot(Thing):
 
     def move_forward(self):
         self.move_by(math.cos(self.angle)*self.wheel_speed, -math.sin(self.angle)*self.wheel_speed)
+    def move_backward(self):
+        self.move_by(-math.cos(self.angle)*self.wheel_speed, math.sin(self.angle)*self.wheel_speed)
     def rotate_right(self):
         self.rotate_by(-self.turn_speed)
     def rotate_left(self):
         self.rotate_by(self.turn_speed)
+    def wheel_move(self, left_top, right_top, left_bottom, right_bottom):
+        # move vertical
+        vertical_speed = self.wheel_speed*(left_top + right_top + left_bottom + right_bottom)*0.25
+        self.move_by(math.cos(self.angle)*vertical_speed, -math.sin(self.angle)*vertical_speed)
+
+        # move horizental
+        horizental_speed = self.wheel_speed*(-left_top+right_top+left_bottom-right_bottom)*0.25
+        self.move_by(math.cos(self.angle-math.pi*0.5)*horizental_speed, -math.sin(self.angle-math.pi*0.5)*horizental_speed)
+        
