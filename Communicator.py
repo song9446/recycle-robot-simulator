@@ -12,6 +12,7 @@ def init_world(world):
 
 ACTIONS= {
     "move_forward": lambda: world.robot.move_forward(),
+    "move_backward": lambda: world.robot.move_backward(),
     "turn_left": lambda: world.robot.rotate_left(),
     "turn_right": lambda: world.robot.rotate_right(),
     "grab": lambda: world.robot.try_grab_nearlist(world),
@@ -50,6 +51,8 @@ def test(world, w=0, h=0):
             send_action(world, "turn_left")
         if keys[pygame.K_d]:
             send_action(world, "turn_right")
+        if keys[pygame.K_s]:
+            send_action(world, "move_backward")
         if keys[pygame.K_UP]:
             send_action(world, "grab")
         if keys[pygame.K_DOWN]:
