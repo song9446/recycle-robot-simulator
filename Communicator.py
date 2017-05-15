@@ -37,24 +37,33 @@ def get_reward(world):
 def get_screen_pixels(world, w, h):
     return pygame.surfarray.array2d(pygame.transform.scale(world.get_screen(), (w, h))).view('uint8').reshape((w, h, 4,))[..., :3][:,:,::-1]
 
+
+
+
+clock = pygame.time.Clock()
+TITLE="Recycler"
+pygame.init()
+last_w=0
+last_h=0
+screen = pygame.display.set_mode((last_w, last_h))
+def show(world):
+    if last_w!=world.w or last_h!=world.h:
+        screen = pygame.display.set_mode((world.w, world.h))
+    world.draw_on(screen)
+    pygame.display.flip()
+    clock.tick()
+    pygame.display.set_caption(TITLE + "/FPS: "+ str(round(clock.get_fps())) + "/SCORE: " + str(get_reward(world)))
+
+
+
+
 def test(world, w=0, h=0):
     '''
     This function is just for the test.
     You can see the gui and you can test the action works well by a keyboard.
     '''
-    clock = pygame.time.Clock()
-
-    TITLE="Recycler"
-
-    pygame.init()
-    if w==0: w=world.w
-    if h==0: h=world.h
-    screen = pygame.display.set_mode((w, h))
-
-
     while True:
-        world.draw_on(screen)
-        pygame.display.flip()
+        show(world)
         keys = pygame.key.get_pressed()
         if keys[pygame.K_w]:
             send_action(world, "move_forward", 1)
@@ -84,8 +93,6 @@ def test(world, w=0, h=0):
                 pass
             elif event.type == pygame.MOUSEMOTION:
                 pass
-        clock.tick()
-        pygame.display.set_caption(TITLE + "/FPS: "+ str(round(clock.get_fps())) + "/SCORE: " + str(get_reward(world)))
 
 
 world = gen_world(800, 800)

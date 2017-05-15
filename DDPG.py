@@ -12,6 +12,7 @@ class DDPG:
         # q-value estimater neural network
         with tf.variable_scope("actor_network"):
             state = tf.placeholder(shape=(batch_size,)+state_dim, dtype=tf.uint8, name="state")
+            state = tf.to_float(state)
             conv = tf.contrib.layers.conv2d(
                 state, 32, 8, 4, activation_fn=tf.nn.relu)
             conv = tf.contrib.layers.conv2d(
@@ -23,10 +24,7 @@ class DDPG:
             predict_action = tf.contrib.layers.fully_connected(fc, num_actions, activation_fn=tf.nn.tanh)
             
         with tf.variable_scope("critic_network"):
-            state = tf.placeholder(shape=(batch_size,)+state_dim, dtype=tf.uint8, name="state")
             action = tf.placeholder(shape=(batch_size, num_actions), dtype=tf.float32, name="action")
-            state = tf.to_float(state)
-            
             conv = tf.contrib.layers.conv2d(
                 state, 32, 8, 4, activation_fn=tf.nn.relu)
             conv = tf.contrib.layers.conv2d(
