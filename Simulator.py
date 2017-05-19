@@ -7,7 +7,7 @@ import math
 
 pygame.init()
 pygame.font.init()
-pygame.display.set_mode((1024, 1024))
+pygame.display.set_mode((500, 500))
 
 class World:
     font_pathes = [os.path.join("fonts", f) for f in os.listdir("fonts") if f.endswith(".ttf")]
@@ -42,16 +42,25 @@ class World:
         
         # gen screen(which all of above are drawn)
         self.screen = pygame.Surface((w, h))
+         
+        self.score = 0
+        self.last_distance_sum = 0.
+        self.get_score()
     def get_score(self):
         # get distacne score from each trashes
-        distance_square_sum=0
+        distance_sum=0.
         for _, trashes in self.trashes.items():
             for i in range(len(trashes)):
                 for j in range(i+1, len(trashes)):
                     trash1 = trashes[i]
                     trash2 = trashes[j]
-                    distance_square_sum += trash1.distance(trash2)**2
-        return -distance_square_sum
+                    distance_sum += trash1.distance(trash2)
+        if self.last_distance_sum != 0:
+            self.score += - distance_sum + self.last_distance_sum
+        self.last_distance_sum = distance_sum
+        
+        # get distance from robot nearlist trash
+        return self.score
         
         
             
@@ -119,7 +128,7 @@ class Robot(Thing):
     #move_animation= []
     stop_image = pygame.image.load(stop_image_path).convert_alpha()
     stop_sprite = stop_image
-    wheel_speed = 1
+    wheel_speed = 10
 
     #grab_animation_surfaces = [pygame.image.load(i) for i in grab_animation_path]
     #move_animation_surfaces = [pygame.image.load(i) for i in move_animation_path]

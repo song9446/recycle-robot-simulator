@@ -32,10 +32,11 @@ def send_action(world, action, *args, **kwargs):
     
 def get_reward(world):
     return world.get_score()
-    
 
 def get_screen_pixels(world, w, h):
     return pygame.surfarray.array2d(pygame.transform.scale(world.get_screen(), (w, h))).view('uint8').reshape((w, h, 4,))[..., :3][:,:,::-1]
+
+
 
 
 
@@ -46,9 +47,11 @@ pygame.init()
 last_w=0
 last_h=0
 screen = pygame.display.set_mode((last_w, last_h))
-def show(world):
-    if last_w!=world.w or last_h!=world.h:
-        screen = pygame.display.set_mode((world.w, world.h))
+def show(world, w=0, h=0):
+    #if w==0 or h==0:
+      #  w = world.w
+      #  h = world.h
+      #  screen = pygame.display.set_mode((world.w, world.h))
     world.draw_on(screen)
     pygame.display.flip()
     clock.tick()
@@ -95,5 +98,6 @@ def test(world, w=0, h=0):
                 pass
 
 
-world = gen_world(800, 800)
-test(world, 800, 800)
+if __name__ == '__main__':
+    world = gen_world(800, 800)
+    test(world, 300, 300)
