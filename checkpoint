@@ -1,0 +1,2 @@
+model_checkpoint_path: "/home/art/Projects/recycle-robot-simulator/model.ckpt"
+all_model_checkpoint_paths: "/home/art/Projects/recycle-robot-simulator/model.ckpt"

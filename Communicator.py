@@ -24,7 +24,9 @@ ACTIONS= {
     "turn_right": lambda world, w: world.robot.rotate_right(w),
     "grab": lambda world: world.robot.try_grab_nearlist(world),
     "put": lambda world: world.robot.put(),
-    "wheel_move": lambda world, lt, rt, lb, rb: world.robot.wheel_move(lt, rt, lb, rb)
+    "wheel_move": lambda world, lt, rt, lb, rb: world.robot.wheel_move(lt, rt, lb, rb),
+    "move": lambda world, x, y, r: world.robot.move(x, y, r),
+    "absolute_move": lambda world, x, y, w: world.robot.absolute_move(x, y, w),
 }
 
 def send_action(world, action, *args, **kwargs):
@@ -44,18 +46,20 @@ def get_screen_pixels(world, w, h):
 clock = pygame.time.Clock()
 TITLE="Recycler"
 pygame.init()
-last_w=0
-last_h=0
-screen = pygame.display.set_mode((last_w, last_h))
+screen = pygame.display.set_mode((0, 0))
 def show(world, w=0, h=0):
-    #if w==0 or h==0:
-      #  w = world.w
-      #  h = world.h
-      #  screen = pygame.display.set_mode((world.w, world.h))
+    if (w==0 or h==0) and (w != world.w or h != world.h):
+        w = world.w
+        h = world.h
+    if show.last_w != w or show.last_h != h:
+        screen = pygame.display.set_mode((w, h))
+        last_w, last_h = w, h
     world.draw_on(screen)
     pygame.display.flip()
     clock.tick()
-    pygame.display.set_caption(TITLE + "/FPS: "+ str(round(clock.get_fps())) + "/SCORE: " + str(get_reward(world)))
+    #pygame.display.set_caption(TITLE + "/FPS: "+ str(round(clock.get_fps())) + "/SCORE: " + str(get_reward(world)))
+show.last_w = 0
+show.last_h = 0
 
 
 

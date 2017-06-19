@@ -9,6 +9,11 @@ pygame.init()
 pygame.font.init()
 pygame.display.set_mode((500, 500))
 
+predefined_random = []
+for i in range(10000):
+    predefined_random.append(random.random())
+
+
 class World:
     font_pathes = [os.path.join("fonts", f) for f in os.listdir("fonts") if f.endswith(".ttf")]
     #categories = ["can"]
@@ -17,23 +22,28 @@ class World:
         self.h = h
         # gen trashes randomly
         self.trashes = {
-            "can": [Can() for _ in range(random.randrange(1, 10))]
+            "can": [Can() for _ in range(2)]#random.randrange(1, 3))]
         }
+        self._i = 0
         for _, trashes in self.trashes.items():
             for trash in trashes:
                 radius=(trash.sprite.get_width()**2 + trash.sprite.get_height()**2)**0.5*0.5
-                trash.move_to(radius+random.random()*(w-radius*2), radius+random.random()*(h-radius*2))
-                trash.rotate_to(random.random()*math.pi*2)
+                #trash.move_to(radius+random.random()*(w-radius*2), radius+random.random()*(h-radius*2))
+                #trash.rotate_to(random.random()*math.pi*2)
+                trash.move_to(radius+predefined_random[self._i]*(w-radius*2), radius+predefined_random[self._i+1]*(h-radius*2))
+                trash.rotate_to(predefined_random[self._i+2]*math.pi*2)
+                self._i += 3
         # gen robot random position
         self.robot = Robot()
         radius = (self.robot.sprite.get_width()**2 + self.robot.sprite.get_height()**2)**0.5*0.5
-        self.robot.move_to(radius+random.random()*(w-radius*2), radius+random.random()*(h-radius*2))
-        self.robot.rotate_to(random.random()*math.pi*2)
+        self.robot.move_to(radius+predefined_random[self._i]*(w-radius*2), radius+predefined_random[self._i+1]*(h-radius*2))
+        self.robot.rotate_to(predefined_random[self._i+2]*math.pi*2)
+        self._i += 3
 
         # gen background 
         # should be with noise(not currently support)
         self.background = pygame.Surface((w, h))
-        self.background.fill((255, 255, 255))
+        self.background.fill((0, 0, 0))
 
         # gen category label randomly
         #self.fonts = [pygame.font.Font(random.choice(World.font_pathes), random.randrange(80, 100)) for _ in World.categories]
@@ -45,8 +55,49 @@ class World:
          
         self.score = 0
         self.last_distance_sum = 0.
+        self.last_dangle = 0.
+        self.terminal = False
         self.get_score()
+    def is_terminal(self):
+        return self.terminal
     def get_score(self):
+        distance_sum=0.
+        #for _, trashes in self.trashes.items():
+        #    for i in range(len(trashes)):
+        #        distance_sum += trashes[i].distance(self.robot);
+        #if distance_sum < 100:
+        #    self.score += 1
+        #return self.score
+        
+        #dangle = 0.
+        #for _, trashes in self.trashes.items():
+        #    for i in range(len(trashes)):
+        #        dangle += math.fabs(self.robot.dangle(trashes[i])) - math.fabs(self.robot.angle)
+        #if self.last_dangle != 0: 
+        #    if math.fabs(self.last_dangle) > math.fabs(dangle):
+        #        self.score = 1
+        #    elif math.fabs(self.last_dangle) < math.fabs(dangle):
+        #        self.score = -1
+        #    else:
+        #        self.score = 0
+        #self.last_dangle = dangle
+  
+        #return self.score
+
+        #distance_sum=0.
+        #for _, trashes in self.trashes.items():
+        #    for i in range(len(trashes)):
+        #        distance_sum += trashes[i].distance(self.robot);
+#
+#        if self.last_distance_sum != 0:
+#            if self.last_distance_sum > distance_sum:
+#                self.score = 1
+#            elif self.last_distance_sum < distance_sum:
+#                self.score = -1
+#            else: self.score = 0
+#        self.last_distance_sum = distance_sum
+#        return self.score
+        
         # get distacne score from each trashes
         distance_sum=0.
         for _, trashes in self.trashes.items():
@@ -107,10 +158,16 @@ class Thing:
         self.y += y
     def rotate_to(self, angle):
         self.angle = angle
+        while self.angle > math.pi*2: self.angle-=math.pi*2
+        while self.angle < 0: self.angle+=math.pi*2
     def rotate_by(self, angle):
         self.angle += angle
+        while self.angle > math.pi: self.angle-=math.pi*2
+        while self.angle < -math.pi: self.angle+=math.pi*2
     def distance(self, other):
-        return ((self.x-other.x)**2 + (self.x-other.x)**2)**0.5
+        return ((self.x-other.x)**2 + (self.y-other.y)**2)**0.5
+    def dangle(self, other):
+        return math.atan2(other.y-self.y, other.x-self.x)
 
 class Can(Thing):
     image_pathes = [os.path.join("images/can", f) for f in os.listdir("images/can") if f.endswith(".png")]
@@ -128,7 +185,7 @@ class Robot(Thing):
     #move_animation= []
     stop_image = pygame.image.load(stop_image_path).convert_alpha()
     stop_sprite = stop_image
-    wheel_speed = 10
+    wheel_speed = 50
 
     #grab_animation_surfaces = [pygame.image.load(i) for i in grab_animation_path]
     #move_animation_surfaces = [pygame.image.load(i) for i in move_animation_path]
@@ -179,14 +236,14 @@ class Robot(Thing):
         dangle = angle - self.angle
         self.rotate_by(dangle)
     def rotate_by(self, angle):
-        self.angle += angle
+        Thing.rotate_by(self, angle)
         if self.grab_thing is not None:
             self.grab_thing.rotate_by(angle)
             arm_pos = (self.x+math.cos(self.angle)*0.5*self.w, self.y-math.sin(self.angle)*0.5*self.w)
             self.grab_thing.move_to(*arm_pos)
 
     def move_forward(self, v):
-        self.move_by(math.cos(self.angle)*self.wheel_speed, -math.sin(self.angle)*self.wheel_speed)
+        self.move_by(math.cos(self.angle)*self.wheel_speed*v, -math.sin(self.angle)*self.wheel_speed*v)
     def move_backward(self, v):
         self.move_by(-math.cos(self.angle)*self.wheel_speed*v, math.sin(self.angle)*self.wheel_speed*v)
     def move_right(self, v):
@@ -197,6 +254,10 @@ class Robot(Thing):
         self.rotate_by(-self.turn_speed*w)
     def rotate_left(self, w):
         self.rotate_by(self.turn_speed*w)
+    def move(self, x, y, w):
+        self.move_forward(y)
+        self.move_right(x)
+        self.rotate_right(w)
     def wheel_move(self, left_top, right_top, left_bottom, right_bottom):
         # vy = wx*R - wr*r*cos(45)
         # vx = wr*r*sin(45)
@@ -207,4 +268,7 @@ class Robot(Thing):
         # move horizental
         horizental_speed = self.wheel_speed*(-left_top+right_top+left_bottom-right_bottom)*0.25
         self.move_by(math.cos(self.angle-math.pi*0.5)*horizental_speed, -math.sin(self.angle-math.pi*0.5)*horizental_speed)
+    def absolute_move(self, x, y, w):
+        self.move_by(self.wheel_speed*x, self.wheel_speed*y)
+        self.rotate_by(self.turn_speed*w)
         

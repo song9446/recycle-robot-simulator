@@ -13,6 +13,8 @@ import tensorflow as tf
 import numpy as np
 import tflearn
 import Communicator
+import random
+import matplotlib.pyplot as plt
 
 from replay_buffer import ReplayBuffer
 
@@ -28,7 +30,7 @@ ACTOR_LEARNING_RATE = 0.0001
 # Base learning rate for the Critic Network
 CRITIC_LEARNING_RATE = 0.001
 # Discount factor
-GAMMA = 0.99
+GAMMA = 0.8
 # Soft target update param
 TAU = 0.001
 
@@ -45,7 +47,7 @@ ENV_NAME = 'Pendulum-v0'
 MONITOR_DIR = './results/gym_ddpg'
 # Directory for storing tensorboard summary results
 SUMMARY_DIR = './results/tf_ddpg'
-RANDOM_SEED = 1234
+RANDOM_SEED = 12024
 # Size of replay buffer
 BUFFER_SIZE = 10000
 MINIBATCH_SIZE = 64
@@ -105,23 +107,23 @@ class ActorNetwork(object):
 
     def create_actor_network(self):
         inputs = tflearn.input_data(shape=(None,)+self.s_dim)
-        net = tf.contrib.layers.conv2d(inputs, 32,8, 4, 
+        net = tf.contrib.layers.conv2d(inputs, 32, 1, 1, 
                                      activation_fn=tf.nn.relu,
                                      weights_initializer=tf.contrib.layers.xavier_initializer_conv2d(uniform=False),
                                      biases_initializer=tf.contrib.layers.xavier_initializer(uniform=False))
-        net = tf.contrib.layers.conv2d(net, 64,4,2, 
+        net = tf.contrib.layers.conv2d(net, 32, 1, 1, 
                                      activation_fn=tf.nn.relu,
                                      weights_initializer=tf.contrib.layers.xavier_initializer_conv2d(uniform=False),
                                      biases_initializer=tf.contrib.layers.xavier_initializer(uniform=False))
-        net = tf.contrib.layers.conv2d(net, 64,3,1, 
+        net = tf.contrib.layers.conv2d(net, 32, 1, 1, 
                                      activation_fn=tf.nn.relu,
                                      weights_initializer=tf.contrib.layers.xavier_initializer_conv2d(uniform=False),
                                      biases_initializer=tf.contrib.layers.xavier_initializer(uniform=False))
         net = tf.contrib.layers.flatten(net)
                                      #kernel_regularizer=tf.nn.l2_loss,
                                      #bias_regularizer=tf.nn.l2_loss,)
-        net = tflearn.fully_connected(net, 512, activation='relu')
-        #net = tflearn.fully_connected(net, 300, activation='relu')
+        net = tflearn.fully_connected(net, 200, activation='relu')
+        net = tflearn.fully_connected(net, 200, activation='relu')
         # Final layer weights are init to Uniform[-3e-3, 3e-3]
         out = tf.contrib.layers.fully_connected(
             net, sum(self.a_dim), activation_fn=tf.nn.tanh, weights_initializer=tf.contrib.layers.xavier_initializer(uniform=True),
@@ -200,27 +202,30 @@ class CriticNetwork(object):
         inputs = tflearn.input_data(shape=(None,) + self.s_dim)
         action = tflearn.input_data(shape=(None,) + self.a_dim)
 
-        net = tf.contrib.layers.conv2d(inputs, 32,8, 4, 
+        net = tf.contrib.layers.conv2d(inputs, 32,1,1, 
                                      activation_fn=tf.nn.relu,
                                      weights_initializer=tf.contrib.layers.xavier_initializer_conv2d(uniform=False),
                                      biases_initializer=tf.contrib.layers.xavier_initializer(uniform=False))
-        net = tf.contrib.layers.conv2d(net, 64,4,2, 
+        net = tf.contrib.layers.conv2d(net, 32,1, 1, 
                                      activation_fn=tf.nn.relu,
                                      weights_initializer=tf.contrib.layers.xavier_initializer_conv2d(uniform=False),
                                      biases_initializer=tf.contrib.layers.xavier_initializer(uniform=False))
-        net = tf.contrib.layers.conv2d(net, 64,3,1, 
+        net = tf.contrib.layers.conv2d(net, 32,1, 1, 
                                      activation_fn=tf.nn.relu,
                                      weights_initializer=tf.contrib.layers.xavier_initializer_conv2d(uniform=False),
                                      biases_initializer=tf.contrib.layers.xavier_initializer(uniform=False))
         net = tf.contrib.layers.flatten(net)
                                      #kernel_regularizer=tf.nn.l2_loss,
                                      #bias_regularizer=tf.nn.l2_loss,)
+        net = tflearn.fully_connected(net, 300, activation='relu')
         net = tflearn.fully_connected(net, 512, activation='relu')
-        net2 = tflearn.fully_connected(action, 512)
-        #net = tflearn.fully_connected(net, 300, activation='relu')
+        net2 = tflearn.fully_connected(action, 512, activation='relu')
         # Final layer weights are init to Uniform[-3e-3, 3e-3]
+        #out = tflearn.fully_connected(net + net2, 1, activation='tanh')
+        #out = tflearn.fully_connected(net + net2, 1, activation=None)
+        #out = tflearn.fully_connected(net2, 1, activation=None)
         out = tf.contrib.layers.fully_connected(
-            net+net2, 1, activation_fn=tf.nn.tanh, weights_initializer=tf.contrib.layers.xavier_initializer(uniform=True),
+            net+net2, sum(self.a_dim), activation_fn=None, weights_initializer=tf.contrib.layers.xavier_initializer(uniform=True),
             biases_initializer=tf.contrib.layers.xavier_initializer(uniform=True))
 
         return inputs, action, out
@@ -274,7 +279,7 @@ def build_summaries():
 # ===========================
 
 
-def train(sess, world, actor, critic):
+def train(sess, world, actor, critic, state_dim):
 
     # Set up summary Ops
     summary_ops, summary_vars = build_summaries()
@@ -296,26 +301,36 @@ def train(sess, world, actor, critic):
         ep_reward = 0
         ep_ave_max_q = 0
 
+        s, s2 = None, None
+        _s, _last_s = None, None
         for j in range(MAX_EP_STEPS):
-            s = Communicator.get_screen_pixels(world, 32, 32)
-            if RENDER_ENV:
-                Communicator.show(world)
+            _s = np.dot(Communicator.get_screen_pixels(world, state_dim[0], state_dim[1]), [0.299, 0.587, 0.114]).astype(np.float32)/256.
+
+            if(_last_s!=None):
+                s = np.concatenate((_last_s[...,np.newaxis], _s[...,np.newaxis]), axis=2)
+            else:
+                s = np.concatenate((_s[...,np.newaxis], _s[..., np.newaxis]), axis=2)
+            _last_s = _s
 
             # Added exploration noise
-            a = actor.predict(np.reshape(s, (1,)+s.shape)) + (1. / (1. + i))
+            a = actor.predict(np.reshape(s, (1,)+s.shape))
+            a[0][0] += (random.random()*4-2) * (100. / (100. + i))
+            #a[0][1] += (random.random()*2-1) * (1. / (1. + i))
+            #a = actor.predict(np.reshape(s, (1,)+s.shape))
+              
+            #Communicator.send_action(world, "move_forward", 1)
+            Communicator.send_action(world, "absolute_move", a[0][0],0,0)
 
-            Communicator.send_action(world, "wheel_move", a[0][0], a[0][1], a[0][2], a[0][3])
-            if(a[0][4] > 0):
-                Communicator.send_action(world, "grab")
-            if(a[0][5] > 0):
-                Communicator.send_action(world, "put")
-            s2 = Communicator.get_screen_pixels(world, 32, 32)
+            _s2 = np.dot(Communicator.get_screen_pixels(world, state_dim[0], state_dim[1]), [0.299, 0.587, 0.114]).astype(np.float32)/256.
+            s2 = np.concatenate((_s[...,np.newaxis], _s2[...,np.newaxis]), axis=2)
             r = Communicator.get_reward(world)
             terminal = 0
             if world.robot.x > world.w or world.robot.x < 0 or world.robot.y > world.h or world.robot.y < 0:
                 terminal = 1
                 #Communicator.init_world(world)
 
+            if RENDER_ENV:
+                Communicator.show(world, 300, 300)
             replay_buffer.add(np.reshape(s, actor.s_dim), np.reshape(a, actor.a_dim), r,
                               terminal, np.reshape(s2, actor.s_dim))
 
@@ -354,31 +369,31 @@ def train(sess, world, actor, critic):
             s = s2
             ep_reward += r
 
-            if terminal:
+            if terminal: break
 
-                summary_str = sess.run(summary_ops, feed_dict={
-                    summary_vars[0]: ep_reward,
-                    summary_vars[1]: ep_ave_max_q / float(j)
-                })
 
-                writer.add_summary(summary_str, i)
-                writer.flush()
+        summary_str = sess.run(summary_ops, feed_dict={
+            summary_vars[0]: ep_reward,
+            summary_vars[1]: ep_ave_max_q / float(j)
+        })
 
-                print('| Reward: %.2i' % int(ep_reward), " | Episode", i, \
-                    '| Qmax: %.4f' % (ep_ave_max_q / float(j)))
+        writer.add_summary(summary_str, i)
+        writer.flush()
 
-                break
+        print('| Reward: %.2i' % int(ep_reward), " | Episode", i, \
+            '| Qmax: %.4f' % (ep_ave_max_q / float(j)))
 
 
 def main(_):
     with tf.Session() as sess:
 
-        world = Communicator.gen_world(700, 700)
+        world = Communicator.gen_world(1500, 1500)
         np.random.seed(RANDOM_SEED)
         tf.set_random_seed(RANDOM_SEED)
+        random.seed(RANDOM_SEED)
 
-        state_dim = (32, 32, 3)
-        action_dim = (6,)
+        state_dim = (32, 32, 2)
+        action_dim = (1,)
 
         actor = ActorNetwork(sess, state_dim, action_dim, 
                              ACTOR_LEARNING_RATE, TAU)
@@ -386,7 +401,7 @@ def main(_):
         critic = CriticNetwork(sess, state_dim, action_dim,
                                CRITIC_LEARNING_RATE, TAU, actor.get_num_trainable_vars())
 
-        train(sess, world, actor, critic)
+        train(sess, world, actor, critic, state_dim)
 
 if __name__ == '__main__':
     tf.app.run()
